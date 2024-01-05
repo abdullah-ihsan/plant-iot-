@@ -95,7 +95,7 @@ class _HomePageState extends State<HomePage> {
         PlantList.makePlantList(_plantList);
       });
     }
-    print(listResponse![0]['time_water'].toString().split("\d{2}:\d{2}"));
+    //print(listResponse![0]['time_water'].toString().split("\d{2}:\d{2}"));
     print('api re-fetched');
   }
 
