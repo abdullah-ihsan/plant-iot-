@@ -9,6 +9,7 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:mmbd_project/models/PlantList.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -76,20 +77,30 @@ class _HomePageState extends State<HomePage> {
               temperature: listResponse![i]['temperature'],
               humidity: listResponse![i]['humidity'],
               soilMoisture: listResponse![i]['soil_moisture'],
-              lastWatered:
-                  listResponse![i]['time_water'].toString().substring(0, 1) ==
-                          '1'
-                      ? "N/A"
-                      : listResponse![i]['time_water']
-                          .toString()
-                          .substring(11, 16) /* ? "true" : "false" */,
-              lastFanOn:
-                  listResponse![i]['time_water'].toString().substring(0, 1) ==
-                          "1"
-                      ? "N/A"
-                      : listResponse![i]['time_water']
-                          .toString()
-                          .substring(11, 16) /* ? "true" : "false" */,
+              lastWatered: DateFormat.Hm()
+                  .add_jm()
+                  .format(DateFormat("yyyy-MM-ddTHH:mm:ssZ")
+                      .parseUTC(
+                          /* listResponse![i]['time_water']
+                                  .toString()
+                                  .substring(0, 1) ==
+                              '1'
+                          ? "N/A" : */
+                          listResponse![i]['time_water'].toString())
+                      .toLocal())
+                  .toString()
+                  .substring(0, 5) /* ? "true" : "false" */,
+              lastFanOn: DateFormat.Hm()
+                  .add_jm()
+                  .format(DateFormat("yyyy-MM-ddTHH:mm:ssZ").parseUTC(
+                      /* listResponse![i]['time_water']
+                                  .toString()
+                                  .substring(0, 1) ==
+                              '1'
+                          ? "N/A" : */
+                      listResponse![i]['time_fan'].toString()).toLocal())
+                  .toString()
+                  .substring(0, 5) /* ? "true" : "false" */,
               plantGraphic: 'assets/plant.json'));
         }
         PlantList.makePlantList(_plantList);
