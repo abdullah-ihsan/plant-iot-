@@ -1,8 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:lottie/lottie.dart';
+import 'package:mmbd_project/components/data_change_dialog.dart';
 import 'package:mmbd_project/components/plant_card.dart';
 import 'package:mmbd_project/models/Plant.dart';
 import 'package:carousel_slider/carousel_slider.dart';
@@ -23,14 +23,41 @@ class _HomePageState extends State<HomePage> {
   String soilMoist = PlantList.plants[0].soilMoisture;
   String lastWater = PlantList.plants[0].lastWatered;
   String lastFan = PlantList.plants[0].lastFanOn;
-
+  String iD = PlantList.plants[0].id;
+  String name = PlantList.plants[0].plantName;
+  String type = PlantList.plants[0].plantType;
+  int index_for_data = 0;
+  int DEFAULT_moisture = 50;
+  int DEFAULT_temp = 20;
   //String? stringResponse;
   //Map? mapResponse;
   List? listResponse;
   int? listLength;
   List<Plant> _plantList = [];
 
-  Future apicall() async {
+  postData(String id) async {
+    var response = await http.post(
+        Uri.parse(
+            "https://shielded-scrubland-58514-f731e17d6ad1.herokuapp.com/updateThreshold/"),
+        body: {
+          "moisture_threshold": DEFAULT_moisture.toString(),
+          "temperature_threshold": DEFAULT_temp.toString(),
+          "id": id,
+        });
+  }
+
+  postNames(String id, String name, String type) async {
+    var response = await http.post(
+        Uri.parse(
+            "https://shielded-scrubland-58514-f731e17d6ad1.herokuapp.com/updateName/"),
+        body: {
+          "plantName": name,
+          "plantType": type,
+          "id": id,
+        });
+  }
+
+  Future fetchData() async {
     http.Response response;
     response = await http.get(Uri.parse(
         "https://shielded-scrubland-58514-f731e17d6ad1.herokuapp.com/getData/"));
@@ -39,34 +66,54 @@ class _HomePageState extends State<HomePage> {
         //stringResponse = response.body;
         listResponse = json.decode(response.body);
         listLength = listResponse!.length;
-
+        _plantList.clear();
         for (int i = 0; i < listLength!; i++) {
           _plantList?.add(Plant(
-              plantName: listResponse![i]['_id'],
-              plantType: listResponse![i]['id'],
+              id: listResponse![i]['id'],
+              id_: listResponse![i]['_id'],
+              plantName: listResponse![i]['plantName'],
+              plantType: listResponse![i]['plantType'],
               temperature: listResponse![i]['temperature'],
               humidity: listResponse![i]['humidity'],
               soilMoisture: listResponse![i]['soil_moisture'],
-              lastWatered: listResponse![i]['valveOn'] ? "true" : "false",
-              lastFanOn: listResponse![i]['fanOn'] ? "true" : "false",
+              lastWatered:
+                  listResponse![i]['time_water'].toString().substring(0, 1) ==
+                          '1'
+                      ? "N/A"
+                      : listResponse![i]['time_water']
+                          .toString()
+                          .substring(11, 16) /* ? "true" : "false" */,
+              lastFanOn:
+                  listResponse![i]['time_water'].toString().substring(0, 1) ==
+                          "1"
+                      ? "N/A"
+                      : listResponse![i]['time_water']
+                          .toString()
+                          .substring(11, 16) /* ? "true" : "false" */,
               plantGraphic: 'assets/plant.json'));
         }
-
         PlantList.makePlantList(_plantList);
       });
     }
+    print(listResponse![0]['time_water'].toString().split("\d{2}:\d{2}"));
+    print('api re-fetched');
   }
 
   @override
   void initState() {
-    apicall();
     super.initState();
+    fetchData();
+    Timer.periodic(const Duration(seconds: 1), (Timer timer) {
+      fetchData();
+      setState(() {}); // Trigger a rebuild
+    });
     //for()
   }
 
   Widget build(BuildContext context) {
     return Consumer<PlantList>(
       builder: (context, value, child) => Scaffold(
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -87,21 +134,18 @@ class _HomePageState extends State<HomePage> {
               Padding(
                 padding: EdgeInsets.only(top: 50.0),
                 child: DrawerListing(
-                  icon: Icons.add,
-                  text: "Add new plant",
+                  icon: Icons.info,
+                  text: "About",
                   onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => const Placeholder())),
+                          builder: (context) => const AlertDialog(
+                                title:
+                                    Text("IOT based plant monitoring system"),
+                                content: Text(
+                                    "An MMBD Project by:\n Muhammad Abdullah Ihsan\n Nawab Aarij Imam\n Muhammad Ali\n Sibte Najam"),
+                              ))),
                 ),
-              ),
-              DrawerListing(
-                icon: Icons.list,
-                text: "List of plants",
-                onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const Placeholder())),
               ),
             ],
           ),
@@ -117,14 +161,18 @@ class _HomePageState extends State<HomePage> {
                   temp = p.temperature;
                   humid = p.humidity;
                   soilMoist = p.soilMoisture;
-                  return PlantCard(
-                    plantAnimation: p.plantGraphic ?? "",
-                    plantName: p.plantName,
-                    plantType: p.plantType,
+                  return GestureDetector(
+                    onLongPress: () => openDialog(),
+                    child: PlantCard(
+                      plantAnimation: p.plantGraphic ?? "",
+                      plantName: p.plantName,
+                      plantType: p.plantType,
+                    ),
                   );
                 },
                 options: CarouselOptions(
-                    height: 400,
+                    //height: 500,
+                    aspectRatio: 5 / 6,
                     enableInfiniteScroll: false,
                     scrollPhysics: BouncingScrollPhysics(),
                     onPageChanged: (index, reason) {
@@ -135,7 +183,11 @@ class _HomePageState extends State<HomePage> {
                         soilMoist = p.soilMoisture;
                         lastWater = p.lastWatered;
                         lastFan = p.lastFanOn;
+                        iD = p.id;
+                        name = p.plantName;
+                        type = p.plantType;
                       });
+                      index_for_data = index;
                     }),
                 itemCount: PlantList.plants.length,
               ),
@@ -145,35 +197,39 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       PlantValueCard(
                         icon: const Icon(Icons.thermostat),
-                        valueType: "Temperature:",
-                        plantValue: temp,
+                        valueType: "Temperature",
+                        plantValue:
+                            value.getPlants()[index_for_data].temperature,
                       ),
                       PlantValueCard(
                         icon: const Icon(Icons.foggy),
-                        valueType: "Humidity:",
-                        plantValue: humid,
+                        valueType: "Humidity",
+                        plantValue: value.getPlants()[index_for_data].humidity,
                       ),
                       PlantValueCard(
                         icon: const Icon(Icons.water_drop),
-                        valueType: "Soil Moisture:",
-                        plantValue: soilMoist,
+                        valueType: "Soil Moisture",
+                        plantValue:
+                            value.getPlants()[index_for_data].soilMoisture,
                       ),
                       PlantValueCard(
                         icon: const Icon(Icons.timelapse),
-                        valueType: "Last Watered:",
-                        plantValue: lastWater,
+                        valueType: "Last Watered",
+                        plantValue:
+                            value.getPlants()[index_for_data].lastWatered,
                       ),
                       PlantValueCard(
                         icon: const Icon(Icons.air),
-                        valueType: "Last Fan on:",
-                        plantValue: lastFan,
+                        valueType: "Last Fan on",
+                        plantValue: value.getPlants()[index_for_data].lastFanOn,
                       ),
-                      listResponse == null
-                          ? Text("Waiting")
-                          : Text(listResponse![0].toString()),
                     ],
                   ),
                 ),
+              ),
+              //FloatingActionButton(onPressed: () => postData(iD))
+              Container(
+                height: 20,
               ),
             ],
           ),
@@ -181,6 +237,26 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+
+  Future openDialog() => showDialog(
+        context: context,
+        builder: (context) => DataChangeDialog(
+          DEFAULT_moisture: DEFAULT_moisture,
+          DEFAULT_temp: DEFAULT_temp,
+          name: name,
+          type: type,
+          id: iD,
+          onValuesChanged: (newMoisture, newTemp) {
+            setState(() {
+              // Update the values in the HomePage class
+              DEFAULT_temp = newTemp;
+              DEFAULT_moisture = newMoisture;
+            });
+          },
+          postData: (id) => postData(id),
+          postNames: (id, name, type) => postNames(id, name, type),
+        ),
+      );
 }
 
 class PlantValueCard extends StatelessWidget {
@@ -207,27 +283,33 @@ class PlantValueCard extends StatelessWidget {
         width: 300,
         height: 75,
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Padding(
-              padding: const EdgeInsets.only(left: 20.0, right: 15.0),
-              child: icon,
-            ),
-            Text(
-              valueType,
-              style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color.fromARGB(255, 73, 73, 73)),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(left: 10.0),
-              child: Text(
-                plantValue,
-                style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color.fromARGB(255, 73, 73, 73)),
+              padding: const EdgeInsets.only(left: 16.0),
+              child: Padding(
+                padding: const EdgeInsets.only(left: 10.0),
+                child: Text(
+                  plantValue,
+                  style: const TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.bold,
+                      color: Color.fromARGB(255, 73, 73, 73)),
+                ),
               ),
+            ),
+            Row(
+              children: [
+                Text(
+                  valueType,
+                  style: const TextStyle(
+                      fontSize: 15, color: Color.fromARGB(255, 128, 128, 128)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 20.0, right: 15.0),
+                  child: icon,
+                ),
+              ],
             ),
           ],
         ),
@@ -247,7 +329,6 @@ class DrawerListing extends StatelessWidget {
   final IconData icon;
   final String text;
   void Function()? onTap;
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -265,6 +346,126 @@ class DrawerListing extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class DataChangeDialog extends StatefulWidget {
+  DataChangeDialog({
+    super.key,
+    required this.DEFAULT_moisture,
+    required this.DEFAULT_temp,
+    required this.id,
+    required this.onValuesChanged,
+    required this.postData,
+    required this.postNames,
+    required this.name,
+    required this.type,
+  });
+
+  int DEFAULT_moisture;
+  int DEFAULT_temp;
+  final String id;
+  final Function(int, int) onValuesChanged;
+  final Function(String) postData;
+  final Function(String, String, String) postNames;
+
+  String name;
+  String type;
+
+  @override
+  State<DataChangeDialog> createState() => _DataChangeDialogState();
+}
+
+class _DataChangeDialogState extends State<DataChangeDialog> {
+  final _namecontroller = TextEditingController();
+  final _typecontroller = TextEditingController();
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text("Change Plant Details"),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            //const Text("Plant Name:"),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10.0),
+              child: TextField(
+                controller: _namecontroller,
+                decoration: InputDecoration(
+                  hintText: "Plant Name",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ),
+            //const Text("Plant Type:"),
+            Padding(
+              padding: const EdgeInsets.only(top: 10.0, bottom: 20.0),
+              child: TextField(
+                controller: _typecontroller,
+                decoration: InputDecoration(
+                  hintText: "Plant Type",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ),
+            const Text("Moisture Threshold: "),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10.0),
+              child: Slider(
+                value: widget.DEFAULT_moisture.toDouble(),
+                max: 100,
+                min: 0,
+                divisions: 100,
+                label: widget.DEFAULT_moisture.toString(),
+                onChanged: (double value) => {
+                  setState(() {
+                    widget.DEFAULT_moisture = value.toInt();
+                  }),
+                },
+              ),
+            ),
+            const Text("Temperature Threshold: "),
+            Slider(
+              value: widget.DEFAULT_temp.toDouble(),
+              max: 50,
+              min: -50,
+              divisions: 100,
+              label: widget.DEFAULT_temp.toString(),
+              onChanged: (double value) => {
+                setState(() {
+                  widget.DEFAULT_temp = value.toInt();
+                }),
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: <Widget>[
+        ElevatedButton(
+          onPressed: () {
+            widget.onValuesChanged(
+              widget.DEFAULT_moisture,
+              widget.DEFAULT_temp,
+            );
+            setState(() {
+              widget.name = _namecontroller.text;
+              widget.type = _typecontroller.text;
+            });
+            widget.postData(widget.id);
+            widget.postNames(widget.id, widget.name, widget.type);
+            Navigator.pop(
+              context,
+            );
+          },
+          child: Text('DONE'),
+        )
+      ],
     );
   }
 }

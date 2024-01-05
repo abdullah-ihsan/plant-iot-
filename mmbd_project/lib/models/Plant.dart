@@ -14,6 +14,8 @@ class Plant {
   final String soilMoisture;
   final String lastWatered;
   final String lastFanOn;
+  final String id;
+  final String id_;
   ///////////////////////////////
 
   Plant({
@@ -24,6 +26,8 @@ class Plant {
     required this.soilMoisture,
     required this.lastWatered,
     required this.lastFanOn,
+    required this.id,
+    required this.id_,
     this.plantGraphic,
   });
 

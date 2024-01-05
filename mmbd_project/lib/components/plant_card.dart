@@ -16,15 +16,21 @@ class PlantCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 0),
+      padding: const EdgeInsets.only(
+        top: 0,
+      ),
       child: Container(
-        margin:
-            const EdgeInsets.only(left: 12.5, right: 12.5, top: 20, bottom: 60),
+        margin: const EdgeInsets.only(
+          left: 12.5,
+          right: 12.5,
+          top: 20,
+          bottom: 10,
+        ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: Colors.white,
         ),
-        width: 300,
+        width: 400,
         height: 300,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
